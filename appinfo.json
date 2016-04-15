@@ -1,0 +1,41 @@
+{
+    "appKeys": {
+        "KEY_CONDITIONS": 3,
+        "KEY_TEMPERATURE": 0
+    },
+    "capabilities": [
+        ""
+    ],
+    "companyName": "thaoh@hotmail.com",
+    "enableMultiJS": false,
+    "longName": "NextToArrive_C",
+    "projectType": "native",
+    "resources": {
+        "media": [
+            {
+                "file": "fonts/perfect-dos-vga.ttf",
+                "name": "FONT_PERFECT_DOS_48",
+                "targetPlatforms": null,
+                "type": "font"
+            },
+            {
+                "file": "fonts/perfect-dos-vga.ttf",
+                "name": "FONT_PERFECT_DOS_20",
+                "targetPlatforms": null,
+                "type": "font"
+            }
+        ]
+    },
+    "sdkVersion": "3",
+    "shortName": "NextToArrive_C",
+    "targetPlatforms": [
+        "aplite",
+        "basalt",
+        "chalk"
+    ],
+    "uuid": "64ca784a-6b4c-457f-9f7d-62d7f5e42e42",
+    "versionLabel": "1.0",
+    "watchapp": {
+        "watchface": false
+    }
+}
