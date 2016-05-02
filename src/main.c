@@ -1,38 +1,62 @@
+//v1.2.
 #include <pebble.h>
 
 #define KEY_STATION1 1
 #define KEY_STATION2 2
-#define KEY_TEMPERATURE 0
-#define KEY_CONDITIONS 3
+#define KEY_DEPART_TIME 3
+#define KEY_DELAY 4
+#define KEY_ARRIVE_TIME 5
 
+char station1[32] = "Wissahickon";
+char station2[32] = "Suburban Station";
+
+char *p_departStation;
+char *p_arriveStation;
+  
 static Window *s_main_window;
 static TextLayer *s_time_layer;
 static TextLayer *title_layer;
 
 static Window *s_trainInfo_window;
-static TextLayer *s_weather_layer;
+static StatusBarLayer *s_statusbar_layer;
+static BitmapLayer *s_trainbar_layer;
+static TextLayer *s_train_departTime_layer;
+static TextLayer *s_train_arriveTime_layer;
+static TextLayer *s_train_station1_layer;
+static TextLayer *s_train_station2_layer;
+static TextLayer *s_train_countdown_layer;
+
+ActionBarLayer *action_bar;
 
 static GFont s_time_font;
 static GFont s_weather_font;
 
 static void inbox_received_callback(DictionaryIterator *iterator, void *context) {
   // Store incoming information
-  static char temperature_buffer[32];
-  static char conditions_buffer[32];
-  static char weather_layer_buffer[32];
+  static char depart_buffer[16];
+  static char delay_buffer[16];
+  static char arrive_buffer[16];
+  static char depart_layer_buffer[32];
 
   // Read tuples for data
-  Tuple *temp_tuple = dict_find(iterator, KEY_TEMPERATURE);
-  Tuple *conditions_tuple = dict_find(iterator, KEY_CONDITIONS);
+  Tuple *depart_tuple = dict_find(iterator, KEY_DEPART_TIME);
+  Tuple *delay_tuple = dict_find(iterator, KEY_DELAY);
+  Tuple *arrive_tuple = dict_find(iterator, KEY_ARRIVE_TIME);
 
   // If all data is available, use it
-  if(temp_tuple && conditions_tuple) {
-    snprintf(temperature_buffer, sizeof(temperature_buffer), "%s", temp_tuple->value->cstring);
-    snprintf(conditions_buffer, sizeof(conditions_buffer), "%s", conditions_tuple->value->cstring);
-
-    // Assemble full string and display
-    snprintf(weather_layer_buffer, sizeof(weather_layer_buffer), "%s, %s", temperature_buffer, conditions_buffer);
-    text_layer_set_text(s_weather_layer, weather_layer_buffer);
+  if(depart_tuple && delay_tuple) {
+    snprintf(depart_buffer, sizeof(depart_buffer), "%s", depart_tuple->value->cstring);
+    snprintf(delay_buffer, sizeof(delay_buffer), "%s", delay_tuple->value->cstring);
+    snprintf(arrive_buffer, sizeof(arrive_buffer), "%s", arrive_tuple->value->cstring); 
+    
+    // Assemble the depart layer string
+    snprintf(depart_layer_buffer, sizeof(depart_layer_buffer), "%s +%sm", depart_buffer, delay_buffer);
+  
+    text_layer_set_text(s_train_departTime_layer, depart_layer_buffer);
+    text_layer_set_text(s_train_station1_layer, p_departStation);
+    text_layer_set_text(s_train_station2_layer, p_arriveStation);
+	  text_layer_set_text(s_train_arriveTime_layer, arrive_buffer);
+    text_layer_set_text(s_train_countdown_layer, delay_buffer);
   }
 }
 
@@ -69,28 +93,50 @@ static void tick_handler(struct tm *tick_time, TimeUnits units_changed) {
 void down_single_click_handler(ClickRecognizerRef recognizer, void *context) {
   printf("%s \n", "DOWN button clicked");
   
+  p_departStation = station1;
+  p_arriveStation = station2;
+  
   // Begin dictionary
     DictionaryIterator *iter;
     app_message_outbox_begin(&iter);
 
     // Add a key-value pair
-    dict_write_uint8(iter, 0, 0);
-
+    //dict_write_uint8(iter, 0, 0);
+    dict_write_cstring(iter, KEY_STATION1, p_departStation);
+    dict_write_cstring(iter, KEY_STATION2, p_arriveStation);
+  
     // Send the message!
     app_message_outbox_send();
   
   window_stack_push(s_trainInfo_window, true);
-  Window *window = (Window *)context;
+  //Window *window = (Window *)context;
 }
 void up_single_click_handler(ClickRecognizerRef recognizer, void *context) {
   printf("%s \n", "UP button clicked");
-  Window *window = (Window *)context;
+  
+  p_departStation = station2;
+  p_arriveStation = station1;
+  
+    // Begin dictionary
+    DictionaryIterator *iter;
+    app_message_outbox_begin(&iter);
+
+    // Add a key-value pair
+    //dict_write_uint8(iter, 0, 0);
+    dict_write_cstring(iter, KEY_STATION1, p_departStation);
+    dict_write_cstring(iter, KEY_STATION2, p_arriveStation);
+  
+    // Send the message!
+    app_message_outbox_send();
+  
+  window_stack_push(s_trainInfo_window, true);
+  //Window *window = (Window *)context;
 }
 void select_single_click_handler(ClickRecognizerRef recognizer, void *context) {
   //... called on single click, and every 1000ms of being held ...
   printf("%s \n", "SELECT button clicked");
-  Window *window = (Window *)context;
-}
+  //Window *window = (Window *)context;
+}  
 
 void config_provider(Window *window) {
  // single click / repeat-on-hold config:
@@ -98,7 +144,11 @@ void config_provider(Window *window) {
   window_single_click_subscribe(BUTTON_ID_UP, up_single_click_handler);
   window_single_repeating_click_subscribe(BUTTON_ID_SELECT, 1000, select_single_click_handler);
 }
-
+/*
+void train_config_provider(Window *window) {
+  window_single_click_subscribe(BUTTON_ID_SELECT, select_single_click_handler);
+}
+*/  
 static void main_window_load(Window *window) {
   // Get information about the Window
   Layer *window_layer = window_get_root_layer(window);
@@ -125,38 +175,106 @@ static void main_window_load(Window *window) {
   layer_add_child(window_layer, text_layer_get_layer(title_layer));
 }
 
-static void trainInfo_window_load(Window *trainInfo_window) {
-  // Get information about the Window
-  Layer *window_layer = window_get_root_layer(trainInfo_window);
-  GRect bounds = layer_get_bounds(window_layer);
-  
-  // Create temperature Layer
-  s_weather_layer = text_layer_create(
-      GRect(0, PBL_IF_ROUND_ELSE(125, 120), bounds.size.w, 25));
-
-  // Style the text
-  text_layer_set_background_color(s_weather_layer, GColorClear);
-  text_layer_set_text_color(s_weather_layer, GColorBlack);
-  text_layer_set_text_alignment(s_weather_layer, GTextAlignmentCenter);
-  text_layer_set_text(s_weather_layer, "Loading...");
-
-  // Create second custom font, apply it and add to Window
-  s_weather_font = fonts_load_custom_font(resource_get_handle(RESOURCE_ID_FONT_PERFECT_DOS_20));
-  text_layer_set_font(s_weather_layer, s_weather_font);
-  layer_add_child(window_get_root_layer(trainInfo_window), text_layer_get_layer(s_weather_layer));
-  
-  window_stack_push(s_trainInfo_window, true);
-}
-
 static void main_window_unload(Window *window) {
   text_layer_destroy(s_time_layer);
   text_layer_destroy(title_layer);
 }
 
+static void trainInfo_window_load(Window *trainInfo_window) {
+  // Get information about the Window
+  Layer *window_layer = window_get_root_layer(trainInfo_window);
+  GRect bounds = layer_get_bounds(window_layer);
+  
+  window_set_background_color(trainInfo_window, GColorBlack);
+  
+  // Create status bar layer
+  s_statusbar_layer = status_bar_layer_create();
+  //int16_t width = layer_get_bounds(window_layer).size.w - ACTION_BAR_WIDTH;
+  int16_t width = layer_get_bounds(window_layer).size.w;
+  GRect frame = GRect(0, 0, width, STATUS_BAR_LAYER_HEIGHT);
+  layer_set_frame(status_bar_layer_get_layer(s_statusbar_layer), frame);
+  layer_add_child(window_layer, status_bar_layer_get_layer(s_statusbar_layer));
+
+  
+  // Create train bar layer
+  s_trainbar_layer = bitmap_layer_create(
+      GRect(0, PBL_IF_ROUND_ELSE(43, 38), 16, 114));
+  bitmap_layer_set_bitmap(s_trainbar_layer, gbitmap_create_with_resource(RESOURCE_ID_TRAIN_BAR));
+  bitmap_layer_set_background_color(s_trainbar_layer, GColorClear);
+  layer_add_child(window_get_root_layer(trainInfo_window), bitmap_layer_get_layer(s_trainbar_layer));
+   
+  // Create station1 layer
+  s_train_station1_layer = text_layer_create(
+      GRect(0, PBL_IF_ROUND_ELSE(21, 16), (bounds.size.w), 18));
+  text_layer_set_background_color(s_train_station1_layer, GColorClear);
+  text_layer_set_font(s_train_station1_layer, fonts_get_system_font(FONT_KEY_GOTHIC_18_BOLD));
+  text_layer_set_text_color(s_train_station1_layer, GColorWhite);
+  text_layer_set_text_alignment(s_train_station1_layer, GTextAlignmentLeft);
+  text_layer_set_overflow_mode(s_train_station1_layer, GTextOverflowModeWordWrap);
+  //text_layer_set_text(s_train_station1_layer, station1);
+  layer_add_child(window_get_root_layer(trainInfo_window), text_layer_get_layer(s_train_station1_layer));
+  
+  // Create depart time layer
+  s_train_departTime_layer = text_layer_create(
+      GRect(19, PBL_IF_ROUND_ELSE(39, 34), (bounds.size.w - 19), 24));
+  text_layer_set_background_color(s_train_departTime_layer, GColorClear);
+  text_layer_set_font(s_train_departTime_layer, fonts_get_system_font(FONT_KEY_GOTHIC_24_BOLD));
+  text_layer_set_text_color(s_train_departTime_layer, GColorWhite);
+  text_layer_set_text_alignment(s_train_departTime_layer, GTextAlignmentLeft);
+  text_layer_set_overflow_mode(s_train_departTime_layer, GTextOverflowModeWordWrap);
+  text_layer_set_text(s_train_departTime_layer, "Loading...");
+  layer_add_child(window_get_root_layer(trainInfo_window), text_layer_get_layer(s_train_departTime_layer));
+    
+  // Create GFont
+  s_time_font = fonts_load_custom_font(resource_get_handle(RESOURCE_ID_FONT_PERFECT_DOS_48));  
+  // Create countdown layer
+  s_train_countdown_layer = text_layer_create(
+    GRect(19, PBL_IF_ROUND_ELSE(81, 76), (bounds.size.w - 19), 48));
+  text_layer_set_background_color(s_train_countdown_layer, GColorClear);
+  text_layer_set_text_color(s_train_countdown_layer, GColorWhite);
+  text_layer_set_text_alignment(s_train_countdown_layer, GTextAlignmentLeft);
+  text_layer_set_text(s_train_countdown_layer, "00m");
+  text_layer_set_font(s_train_countdown_layer, fonts_get_system_font(FONT_KEY_BITHAM_42_MEDIUM_NUMBERS));
+  //text_layer_set_font(s_train_countdown_layer, s_time_font);
+  layer_add_child(window_get_root_layer(trainInfo_window), text_layer_get_layer(s_train_countdown_layer));
+  
+   // Create arrive time Layer
+  s_train_arriveTime_layer = text_layer_create(
+      GRect(19, PBL_IF_ROUND_ELSE(131, 126), (bounds.size.w - 19), 24));
+  text_layer_set_background_color(s_train_arriveTime_layer, GColorClear);
+  text_layer_set_font(s_train_arriveTime_layer, fonts_get_system_font(FONT_KEY_GOTHIC_24));
+  text_layer_set_text_color(s_train_arriveTime_layer, GColorWhite);
+  text_layer_set_text_alignment(s_train_arriveTime_layer, GTextAlignmentLeft);
+  text_layer_set_overflow_mode(s_train_arriveTime_layer, GTextOverflowModeWordWrap);
+  layer_add_child(window_get_root_layer(trainInfo_window), text_layer_get_layer(s_train_arriveTime_layer));
+  
+  // Create station2 layer
+  s_train_station2_layer = text_layer_create(
+      GRect(0, PBL_IF_ROUND_ELSE(145, 150), (bounds.size.w), 18));
+  text_layer_set_background_color(s_train_station2_layer, GColorClear);
+  text_layer_set_font(s_train_station2_layer, fonts_get_system_font(FONT_KEY_GOTHIC_18));
+  text_layer_set_text_color(s_train_station2_layer, GColorWhite);
+  text_layer_set_text_alignment(s_train_station2_layer, GTextAlignmentLeft);
+  text_layer_set_overflow_mode(s_train_station2_layer, GTextOverflowModeWordWrap);
+  //text_layer_set_text(s_train_station1_layer, station2);
+  layer_add_child(window_get_root_layer(trainInfo_window), text_layer_get_layer(s_train_station2_layer));
+  
+
+  
+  // Display the window
+  window_stack_push(s_trainInfo_window, true);
+}
+
 static void trainInfo_window_unload(Window *trainInfo_window) {
   // Destroy weather elements
-  text_layer_destroy(s_weather_layer);
+  status_bar_layer_destroy(s_statusbar_layer);
+  bitmap_layer_destroy(s_trainbar_layer);
+  text_layer_destroy(s_train_station1_layer);
+  text_layer_destroy(s_train_station2_layer);
+  text_layer_destroy(s_train_departTime_layer);
   fonts_unload_custom_font(s_weather_font);
+  text_layer_destroy(s_train_arriveTime_layer);
+  text_layer_destroy(s_train_countdown_layer);
 }
 
 static void init() { 
@@ -200,6 +318,7 @@ static void init() {
 static void deinit() {
   // Destroy Window
   window_destroy(s_main_window);
+  window_destroy(s_trainInfo_window);
 }
 
 int main(void) {

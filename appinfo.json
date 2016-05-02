@@ -1,7 +1,10 @@
 {
     "appKeys": {
-        "KEY_CONDITIONS": 3,
-        "KEY_TEMPERATURE": 0
+        "KEY_ARRIVE_TIME": 5,
+        "KEY_DELAY": 4,
+        "KEY_DEPART_TIME": 3,
+        "KEY_STATION1": 1,
+        "KEY_STATION2": 2
     },
     "capabilities": [
         ""
@@ -12,6 +15,12 @@
     "projectType": "native",
     "resources": {
         "media": [
+            {
+                "file": "images/train_bar.png",
+                "name": "TRAIN_BAR",
+                "targetPlatforms": null,
+                "type": "bitmap"
+            },
             {
                 "file": "fonts/perfect-dos-vga.ttf",
                 "name": "FONT_PERFECT_DOS_48",
