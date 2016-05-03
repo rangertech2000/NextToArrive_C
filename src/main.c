@@ -1,4 +1,4 @@
-//v1.3.
+//v1.4.
 #include <pebble.h>
 
 #define KEY_STATION1 1
@@ -9,6 +9,8 @@
 
 char station1[32] = "Wissahickon";
 char station2[32] = "Suburban Station";
+int minutes_left;
+int mins_counter = 0;
 
 static char *p_departStation;
 static char *p_arriveStation;
@@ -71,6 +73,7 @@ int getMinutesLeft(char *pTrainDeparts, int delay){
 	//strftime(bufferDepart, 16, "%H:%M", departTime);
 	//printf("Depart time: %s\n", bufferDepart);
  
+	minutes_left = minutesUntilDeparture;
 	return minutesUntilDeparture;
 }
 
@@ -99,7 +102,7 @@ static void inbox_received_callback(DictionaryIterator *iterator, void *context)
 	Tuple *delay_tuple = dict_find(iterator, KEY_DELAY);
 	Tuple *arrive_tuple = dict_find(iterator, KEY_ARRIVE_TIME);
 
-	// If all data is available, use it
+	// If data is available, use it
 	if (depart_tuple && delay_tuple) {
 		snprintf(depart_buffer, sizeof(depart_buffer), "%s", depart_tuple->value->cstring);
 		snprintf(delay_buffer, sizeof(delay_buffer), "%s", delay_tuple->value->cstring);
@@ -314,6 +317,10 @@ static void trainInfo_window_unload(Window *trainInfo_window) {
 }
 
 static void tick_handler(struct tm *tick_time, TimeUnits units_changed) {
+	// Decrement minutes left until departure
+	minutes_left--;
+
+	
 	// Update if the main window is on top
 	if (window_stack_get_top_window() == s_main_window){
 		update_time();
@@ -321,7 +328,31 @@ static void tick_handler(struct tm *tick_time, TimeUnits units_changed) {
 
 	// Update if the train info window is on top
 	if (window_stack_get_top_window() == s_trainInfo_window){
-		getData(p_departStation, p_arriveStation);
+		// Increment the counter
+		mins_counter++;
+printf("mins_counter: %d\n", mins_counter);	
+printf("minutes_left: %d\n", minutes_left);	
+		
+		if (minutes_left > 60 && mins_counter > 9){
+		// Only get new data every 10 minutes to save battery
+			mins_counter = 0;
+			getData(p_departStation, p_arriveStation);
+		}
+		else if (minutes_left > 15 && mins_counter > 4){
+		// Only get new data every 5 minutes to save battery
+			mins_counter = 0;
+			getData(p_departStation, p_arriveStation);
+		}
+		else if (minutes_left <= 15){
+		// Get new data every minute
+			getData(p_departStation, p_arriveStation);
+		}
+		else {
+		// Update the countdown timer	
+			static char buffer_minutes_left[4] = "000";
+			snprintf(buffer_minutes_left, sizeof(buffer_minutes_left), "%d", minutes_left);
+			text_layer_set_text(s_train_countdown_layer, buffer_minutes_left);
+		}
 	}  
 }
 

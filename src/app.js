@@ -1,5 +1,5 @@
 var station1, station2; 
-var requests = 3;
+var requests = 1;
 
 var xhrRequest = function (url, type, callback) {
   var xhr = new XMLHttpRequest();
