@@ -22,16 +22,13 @@ function getTrainInfo() {
       var json = JSON.parse(responseText);
       var dictionary;
       
-      //staStart = staStart.substr(0, 14).replace('%20',' ');
-      //staEnd = staEnd.substr(0, 14).replace('%20',' ');
-
       // Show to user
       if (json.length === 0){
         // Assemble dictionary using our keys
         dictionary = {
-          "KEY_DEPART_TIME": 'No trains are available at this time',
-          "KEY_DELAY": 'No delay',
-          "KEY_ARRIVE_TIME": ''
+          "KEY_DEPART_TIME": 'No trains',
+          "KEY_DELAY": '999',
+          "KEY_ARRIVE_TIME": 'No trains'
         };
       }
       else{
@@ -96,6 +93,8 @@ Pebble.addEventListener('appmessage',
       console.log('station2: ' + station2);
     }
     
-    getTrainInfo();
+    if (station1 && station2){
+      getTrainInfo();
+    }
   }
 );

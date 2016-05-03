@@ -1,4 +1,4 @@
-//v1.2.
+//v1.3.
 #include <pebble.h>
 
 #define KEY_STATION1 1
@@ -10,8 +10,8 @@
 char station1[32] = "Wissahickon";
 char station2[32] = "Suburban Station";
 
-char *p_departStation;
-char *p_arriveStation;
+static char *p_departStation;
+static char *p_arriveStation;
   
 static Window *s_main_window;
 static TextLayer *s_time_layer;
@@ -31,6 +31,63 @@ ActionBarLayer *action_bar;
 static GFont s_time_font;
 static GFont s_weather_font;
 
+int getMinutesLeft(char *pTrainDeparts, int delay){
+	// Get departure time hours and min
+	static int pDepartHr = 0;
+	static int pDepartMn = 0;
+  char buffer[3];
+
+	if (strlen(pTrainDeparts) == 6){
+    pDepartHr = atoi(pTrainDeparts);
+    pDepartMn = atoi(strncpy(buffer, pTrainDeparts+2, 2));
+	}
+	else if (strlen(pTrainDeparts) == 7) {
+    pDepartHr = atoi(strncpy(buffer, pTrainDeparts, 2));
+    pDepartMn = atoi(strncpy(buffer, pTrainDeparts+3, 2));
+	}
+	else {
+		// Handles other departure times i.e "Cancelled"
+		pDepartHr = 0;
+		pDepartMn = 0;
+	}
+  
+  // Look for 'PM'
+	if (strstr(pTrainDeparts, "PM")){
+		if (pDepartHr < 12) {
+			pDepartHr += 12;
+		}
+	}
+  // Future: handle times past midnight
+  
+	time_t timeNow;
+	struct tm *departTime;
+	//char bufferDepart[16];
+  
+  time(&timeNow);
+	departTime = localtime(&timeNow);
+	departTime->tm_hour = pDepartHr;
+	departTime->tm_min = pDepartMn;
+  int minutesUntilDeparture = ((mktime(departTime) - timeNow)/60) + delay;
+  //strftime(bufferDepart, 16, "%H:%M", departTime);
+  //printf("Depart time: %s\n", bufferDepart);
+ 
+  return minutesUntilDeparture;
+}
+
+static void getData(char *p_departStation, char *p_arriveStation){
+  // Begin dictionary
+  DictionaryIterator *iter;
+  app_message_outbox_begin(&iter);
+
+  // Add a key-value pair
+  //dict_write_uint8(iter, 0, 0);
+  dict_write_cstring(iter, KEY_STATION1, p_departStation);
+  dict_write_cstring(iter, KEY_STATION2, p_arriveStation);
+
+  // Send the message!
+  app_message_outbox_send();
+}
+  
 static void inbox_received_callback(DictionaryIterator *iterator, void *context) {
   // Store incoming information
   static char depart_buffer[16];
@@ -49,14 +106,22 @@ static void inbox_received_callback(DictionaryIterator *iterator, void *context)
     snprintf(delay_buffer, sizeof(delay_buffer), "%s", delay_tuple->value->cstring);
     snprintf(arrive_buffer, sizeof(arrive_buffer), "%s", arrive_tuple->value->cstring); 
     
+      
+    //getMinutesLeft(pTrainDeparts, delay);
+    static char buffer[4];
+    snprintf(buffer, sizeof(buffer), "%d", getMinutesLeft(depart_buffer, atoi(delay_buffer)));
+printf("Minutes until departure: %s\n", buffer);
+    text_layer_set_text(s_train_countdown_layer, buffer);
+    
     // Assemble the depart layer string
     snprintf(depart_layer_buffer, sizeof(depart_layer_buffer), "%s +%sm", depart_buffer, delay_buffer);
   
+    //Update the text
     text_layer_set_text(s_train_departTime_layer, depart_layer_buffer);
     text_layer_set_text(s_train_station1_layer, p_departStation);
     text_layer_set_text(s_train_station2_layer, p_arriveStation);
 	  text_layer_set_text(s_train_arriveTime_layer, arrive_buffer);
-    text_layer_set_text(s_train_countdown_layer, delay_buffer);
+    //text_layer_set_text(s_train_countdown_layer, buffer);
   }
 }
 
@@ -86,9 +151,6 @@ static void update_time() {
     text_layer_set_text(s_time_layer, s_buffer);
 }
 
-static void tick_handler(struct tm *tick_time, TimeUnits units_changed) {
-  update_time();
-}
 
 void down_single_click_handler(ClickRecognizerRef recognizer, void *context) {
   printf("%s \n", "DOWN button clicked");
@@ -96,17 +158,7 @@ void down_single_click_handler(ClickRecognizerRef recognizer, void *context) {
   p_departStation = station1;
   p_arriveStation = station2;
   
-  // Begin dictionary
-    DictionaryIterator *iter;
-    app_message_outbox_begin(&iter);
-
-    // Add a key-value pair
-    //dict_write_uint8(iter, 0, 0);
-    dict_write_cstring(iter, KEY_STATION1, p_departStation);
-    dict_write_cstring(iter, KEY_STATION2, p_arriveStation);
-  
-    // Send the message!
-    app_message_outbox_send();
+  getData(p_departStation, p_arriveStation);
   
   window_stack_push(s_trainInfo_window, true);
   //Window *window = (Window *)context;
@@ -117,17 +169,7 @@ void up_single_click_handler(ClickRecognizerRef recognizer, void *context) {
   p_departStation = station2;
   p_arriveStation = station1;
   
-    // Begin dictionary
-    DictionaryIterator *iter;
-    app_message_outbox_begin(&iter);
-
-    // Add a key-value pair
-    //dict_write_uint8(iter, 0, 0);
-    dict_write_cstring(iter, KEY_STATION1, p_departStation);
-    dict_write_cstring(iter, KEY_STATION2, p_arriveStation);
-  
-    // Send the message!
-    app_message_outbox_send();
+  getData(p_departStation, p_arriveStation);
   
   window_stack_push(s_trainInfo_window, true);
   //Window *window = (Window *)context;
@@ -149,6 +191,8 @@ void train_config_provider(Window *window) {
   window_single_click_subscribe(BUTTON_ID_SELECT, select_single_click_handler);
 }
 */  
+
+
 static void main_window_load(Window *window) {
   // Get information about the Window
   Layer *window_layer = window_get_root_layer(window);
@@ -184,7 +228,6 @@ static void trainInfo_window_load(Window *trainInfo_window) {
   // Get information about the Window
   Layer *window_layer = window_get_root_layer(trainInfo_window);
   GRect bounds = layer_get_bounds(window_layer);
-  
   window_set_background_color(trainInfo_window, GColorBlack);
   
   // Create status bar layer
@@ -194,7 +237,6 @@ static void trainInfo_window_load(Window *trainInfo_window) {
   GRect frame = GRect(0, 0, width, STATUS_BAR_LAYER_HEIGHT);
   layer_set_frame(status_bar_layer_get_layer(s_statusbar_layer), frame);
   layer_add_child(window_layer, status_bar_layer_get_layer(s_statusbar_layer));
-
   
   // Create train bar layer
   s_trainbar_layer = bitmap_layer_create(
@@ -233,9 +275,9 @@ static void trainInfo_window_load(Window *trainInfo_window) {
   text_layer_set_background_color(s_train_countdown_layer, GColorClear);
   text_layer_set_text_color(s_train_countdown_layer, GColorWhite);
   text_layer_set_text_alignment(s_train_countdown_layer, GTextAlignmentLeft);
-  text_layer_set_text(s_train_countdown_layer, "00m");
   text_layer_set_font(s_train_countdown_layer, fonts_get_system_font(FONT_KEY_BITHAM_42_MEDIUM_NUMBERS));
   //text_layer_set_font(s_train_countdown_layer, s_time_font);
+  text_layer_set_text(s_train_countdown_layer, "00m");
   layer_add_child(window_get_root_layer(trainInfo_window), text_layer_get_layer(s_train_countdown_layer));
   
    // Create arrive time Layer
@@ -259,14 +301,12 @@ static void trainInfo_window_load(Window *trainInfo_window) {
   //text_layer_set_text(s_train_station1_layer, station2);
   layer_add_child(window_get_root_layer(trainInfo_window), text_layer_get_layer(s_train_station2_layer));
   
-
-  
   // Display the window
   window_stack_push(s_trainInfo_window, true);
 }
 
 static void trainInfo_window_unload(Window *trainInfo_window) {
-  // Destroy weather elements
+  // Destroy train window elements
   status_bar_layer_destroy(s_statusbar_layer);
   bitmap_layer_destroy(s_trainbar_layer);
   text_layer_destroy(s_train_station1_layer);
@@ -275,6 +315,18 @@ static void trainInfo_window_unload(Window *trainInfo_window) {
   fonts_unload_custom_font(s_weather_font);
   text_layer_destroy(s_train_arriveTime_layer);
   text_layer_destroy(s_train_countdown_layer);
+}
+
+static void tick_handler(struct tm *tick_time, TimeUnits units_changed) {
+  // Update if the main window is on top
+  if (window_stack_get_top_window() == s_main_window){
+    update_time();
+  }
+  
+  // Update if the train info window is on top
+  if (window_stack_get_top_window() == s_trainInfo_window){
+    getData(p_departStation, p_arriveStation);
+  }  
 }
 
 static void init() { 
