@@ -9,8 +9,7 @@
 
 char station1[32] = "Wissahickon";
 char station2[32] = "Suburban Station";
-int minutes_left;
-int mins_counter = 0;
+int mins_left;
 
 static char *p_departStation;
 static char *p_arriveStation;
@@ -27,8 +26,6 @@ static TextLayer *s_train_arriveTime_layer;
 static TextLayer *s_train_station1_layer;
 static TextLayer *s_train_station2_layer;
 static TextLayer *s_train_countdown_layer;
-
-ActionBarLayer *action_bar;
 
 static GFont s_time_font;
 static GFont s_weather_font;
@@ -73,7 +70,7 @@ int getMinutesLeft(char *pTrainDeparts, int delay){
 	//strftime(bufferDepart, 16, "%H:%M", departTime);
 	//printf("Depart time: %s\n", bufferDepart);
  
-	minutes_left = minutesUntilDeparture;
+	mins_left = minutesUntilDeparture;
 	return minutesUntilDeparture;
 }
 
@@ -198,7 +195,7 @@ static void main_window_load(Window *window) {
 	GRect bounds = layer_get_bounds(window_layer);
 
 	// Create GFont
-	s_time_font = fonts_load_custom_font(resource_get_handle(RESOURCE_ID_FONT_PERFECT_DOS_48));  
+	s_time_font = fonts_load_custom_font(resource_get_handle(RESOURCE_ID_FONT_WHITE_RABBIT_48));  
 
 	// Create the TextLayer with specific bounds
 	s_time_layer = text_layer_create(
@@ -267,15 +264,15 @@ static void trainInfo_window_load(Window *trainInfo_window) {
 	layer_add_child(window_get_root_layer(trainInfo_window), text_layer_get_layer(s_train_departTime_layer));
 
 	// Create GFont
-	s_time_font = fonts_load_custom_font(resource_get_handle(RESOURCE_ID_FONT_PERFECT_DOS_48));  
+	s_time_font = fonts_load_custom_font(resource_get_handle(RESOURCE_ID_FONT_WHITE_RABBIT_48));  
 	// Create countdown layer
 	s_train_countdown_layer = text_layer_create(
 	GRect(PBL_IF_ROUND_ELSE(49, 19), 76, (bounds.size.w - 19), 48));
 	text_layer_set_background_color(s_train_countdown_layer, GColorClear);
 	text_layer_set_text_color(s_train_countdown_layer, GColorWhite);
 	text_layer_set_text_alignment(s_train_countdown_layer, GTextAlignmentLeft);
-	text_layer_set_font(s_train_countdown_layer, fonts_get_system_font(FONT_KEY_BITHAM_42_MEDIUM_NUMBERS));
-	//text_layer_set_font(s_train_countdown_layer, s_time_font);
+	//text_layer_set_font(s_train_countdown_layer, fonts_get_system_font(FONT_KEY_BITHAM_42_MEDIUM_NUMBERS));
+	text_layer_set_font(s_train_countdown_layer, s_time_font);
 	text_layer_set_text(s_train_countdown_layer, "00");
 	layer_add_child(window_get_root_layer(trainInfo_window), text_layer_get_layer(s_train_countdown_layer));
 
@@ -317,41 +314,40 @@ static void trainInfo_window_unload(Window *trainInfo_window) {
 }
 
 static void tick_handler(struct tm *tick_time, TimeUnits units_changed) {
+//static int mins_left;
+static int mins_elapsed;
 	// Decrement minutes left until departure
-	minutes_left--;
+	mins_left--;
 
-	
-	// Update if the main window is on top
-	if (window_stack_get_top_window() == s_main_window){
-		update_time();
-	}
+	// Update TIME
+	update_time();
 
 	// Update if the train info window is on top
 	if (window_stack_get_top_window() == s_trainInfo_window){
 		// Increment the counter
-		mins_counter++;
-printf("mins_counter: %d\n", mins_counter);	
-printf("minutes_left: %d\n", minutes_left);	
+		mins_elapsed++;
+printf("mins_elapsed: %d\n", mins_elapsed);	
+printf("mins_left: %d\n", mins_left);	
 		
-		if (minutes_left > 60 && mins_counter > 9){
+		if (mins_left > 60 && mins_elapsed > 9){
 		// Only get new data every 10 minutes to save battery
-			mins_counter = 0;
+			mins_elapsed = 0;
 			getData(p_departStation, p_arriveStation);
 		}
-		else if (minutes_left > 15 && mins_counter > 4){
+		else if (mins_left > 15 && mins_elapsed > 4){
 		// Only get new data every 5 minutes to save battery
-			mins_counter = 0;
+			mins_elapsed = 0;
 			getData(p_departStation, p_arriveStation);
 		}
-		else if (minutes_left <= 15){
+		else if (mins_left <= 15){
 		// Get new data every minute
 			getData(p_departStation, p_arriveStation);
 		}
 		else {
 		// Update the countdown timer	
-			static char buffer_minutes_left[4] = "000";
-			snprintf(buffer_minutes_left, sizeof(buffer_minutes_left), "%d", minutes_left);
-			text_layer_set_text(s_train_countdown_layer, buffer_minutes_left);
+			static char buffer_mins_left[4] = "000";
+			snprintf(buffer_mins_left, sizeof(buffer_mins_left), "%d", mins_left);
+			text_layer_set_text(s_train_countdown_layer, buffer_mins_left);
 		}
 	}  
 }

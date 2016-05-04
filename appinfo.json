@@ -16,6 +16,12 @@
     "resources": {
         "media": [
             {
+                "file": "fonts/white-rabbit.ttf",
+                "name": "FONT_WHITE_RABBIT_48",
+                "targetPlatforms": null,
+                "type": "font"
+            },
+            {
                 "file": "images/train_bar.png",
                 "name": "TRAIN_BAR",
                 "targetPlatforms": null,
