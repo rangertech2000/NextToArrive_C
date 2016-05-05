@@ -1,4 +1,4 @@
-//v1.4.
+//v1.6.
 #include <pebble.h>
 
 #define KEY_STATION1 1
@@ -27,8 +27,11 @@ static TextLayer *s_train_station1_layer;
 static TextLayer *s_train_station2_layer;
 static TextLayer *s_train_countdown_layer;
 
-static GFont s_time_font;
-static GFont s_weather_font;
+static Window *s_trainSchedule_window;
+static TextLayer *s_trainSchedule_schedule_layer;
+
+static GFont s_time_font_48;
+static GFont s_time_font_60;
 
 int getMinutesLeft(char *pTrainDeparts, int delay){
 	// Get departure time hours and min
@@ -90,6 +93,7 @@ static void getData(char *p_departStation, char *p_arriveStation){
 static void inbox_received_callback(DictionaryIterator *iterator, void *context) {
 	// Store incoming information
 	static char depart_buffer[16];
+	//int delay_buffer;
 	static char delay_buffer[16];
 	static char arrive_buffer[16];
 	static char depart_layer_buffer[32];
@@ -103,16 +107,22 @@ static void inbox_received_callback(DictionaryIterator *iterator, void *context)
 	if (depart_tuple && delay_tuple) {
 		snprintf(depart_buffer, sizeof(depart_buffer), "%s", depart_tuple->value->cstring);
 		snprintf(delay_buffer, sizeof(delay_buffer), "%s", delay_tuple->value->cstring);
+		//delay_buffer = delay_tuple->value->int8;
+//printf("delay_buffer: %d: ", delay_buffer);		
 		snprintf(arrive_buffer, sizeof(arrive_buffer), "%s", arrive_tuple->value->cstring); 
     
 		// Get minutes until departure
-		static char buffer[4];
-		snprintf(buffer, sizeof(buffer), "%d", getMinutesLeft(depart_buffer, atoi(delay_buffer)));
-		text_layer_set_text(s_train_countdown_layer, buffer);
-    
+		static char bufferMinutesLeft[4];
+		snprintf(bufferMinutesLeft, sizeof(bufferMinutesLeft), "%dm", getMinutesLeft(depart_buffer, atoi(delay_buffer)));
+		//snprintf(bufferMinutesLeft, sizeof(bufferMinutesLeft), "%dm", getMinutesLeft(depart_buffer, delay_buffer));
+		text_layer_set_text(s_train_countdown_layer, bufferMinutesLeft);
+		
+		
 		// Assemble the depart layer string
 		snprintf(depart_layer_buffer, sizeof(depart_layer_buffer), "%s +%sm", depart_buffer, delay_buffer);
+  		//snprintf(depart_layer_buffer, sizeof(depart_layer_buffer), "%s +%sm", depart_buffer, buffer);
   
+		
 		//Update the text
 		text_layer_set_text(s_train_departTime_layer, depart_layer_buffer);
 		text_layer_set_text(s_train_station1_layer, p_departStation);
@@ -156,7 +166,7 @@ void down_single_click_handler(ClickRecognizerRef recognizer, void *context) {
 
 	getData(p_departStation, p_arriveStation);
 
-	window_stack_push(s_trainInfo_window, true);
+	window_stack_push(s_trainInfo_window, false);
 	//Window *window = (Window *)context;
 }
 void up_single_click_handler(ClickRecognizerRef recognizer, void *context) {
@@ -167,7 +177,7 @@ void up_single_click_handler(ClickRecognizerRef recognizer, void *context) {
 
 	getData(p_departStation, p_arriveStation);
 
-	window_stack_push(s_trainInfo_window, true);
+	window_stack_push(s_trainInfo_window, false);
 	//Window *window = (Window *)context;
 }
 void select_single_click_handler(ClickRecognizerRef recognizer, void *context) {
@@ -182,11 +192,25 @@ void config_provider(Window *window) {
 	window_single_click_subscribe(BUTTON_ID_UP, up_single_click_handler);
 	window_single_repeating_click_subscribe(BUTTON_ID_SELECT, 1000, select_single_click_handler);
 }
-/*
-void train_config_provider(Window *window) {
-  window_single_click_subscribe(BUTTON_ID_SELECT, select_single_click_handler);
+
+void train_up_click_handler(ClickRecognizerRef recognizer, void *context) {
+	printf("%s \n", "UP button clicked");
+
+	//getData(p_departStation, p_arriveStation);
+
+	window_stack_push(s_trainSchedule_window, false);
 }
-*/  
+
+void train_select_click_handler(ClickRecognizerRef recognizer, void *context) {
+	printf("%s \n", "SELECT button clicked");
+	vibes_short_pulse();
+	getData(p_departStation, p_arriveStation);
+} 
+
+void train_window_config_provider(Window *window) {
+  	window_single_click_subscribe(BUTTON_ID_SELECT, train_select_click_handler);
+	window_single_click_subscribe(BUTTON_ID_UP, train_up_click_handler);
+} 
 
 
 static void main_window_load(Window *window) {
@@ -195,7 +219,7 @@ static void main_window_load(Window *window) {
 	GRect bounds = layer_get_bounds(window_layer);
 
 	// Create GFont
-	s_time_font = fonts_load_custom_font(resource_get_handle(RESOURCE_ID_FONT_WHITE_RABBIT_48));  
+	s_time_font_48 = fonts_load_custom_font(resource_get_handle(RESOURCE_ID_FONT_WHITE_RABBIT_48));  
 
 	// Create the TextLayer with specific bounds
 	s_time_layer = text_layer_create(
@@ -205,7 +229,7 @@ static void main_window_load(Window *window) {
 	text_layer_set_text_alignment(s_time_layer, GTextAlignmentCenter);
 	text_layer_set_text(s_time_layer, "00:00");
 	//text_layer_set_font(s_time_layer, fonts_get_system_font(FONT_KEY_BITHAM_42_BOLD));
-	text_layer_set_font(s_time_layer, s_time_font);
+	text_layer_set_font(s_time_layer, s_time_font_48);
 
 	title_layer = text_layer_create(GRect(0, 0, 144, 20));
 	text_layer_set_text(title_layer, "SEPTA R6");
@@ -218,6 +242,7 @@ static void main_window_load(Window *window) {
 static void main_window_unload(Window *window) {
 	text_layer_destroy(s_time_layer);
 	text_layer_destroy(title_layer);
+	fonts_unload_custom_font(s_time_font_48);
 }
 
 static void trainInfo_window_load(Window *trainInfo_window) {
@@ -264,15 +289,15 @@ static void trainInfo_window_load(Window *trainInfo_window) {
 	layer_add_child(window_get_root_layer(trainInfo_window), text_layer_get_layer(s_train_departTime_layer));
 
 	// Create GFont
-	s_time_font = fonts_load_custom_font(resource_get_handle(RESOURCE_ID_FONT_WHITE_RABBIT_48));  
+	s_time_font_60 = fonts_load_custom_font(resource_get_handle(RESOURCE_ID_FONT_WHITE_RABBIT_60));  
 	// Create countdown layer
 	s_train_countdown_layer = text_layer_create(
-	GRect(PBL_IF_ROUND_ELSE(49, 19), 76, (bounds.size.w - 19), 48));
+	GRect(PBL_IF_ROUND_ELSE(49, 19), 64, (bounds.size.w - 19), 60));
 	text_layer_set_background_color(s_train_countdown_layer, GColorClear);
 	text_layer_set_text_color(s_train_countdown_layer, GColorWhite);
 	text_layer_set_text_alignment(s_train_countdown_layer, GTextAlignmentLeft);
 	//text_layer_set_font(s_train_countdown_layer, fonts_get_system_font(FONT_KEY_BITHAM_42_MEDIUM_NUMBERS));
-	text_layer_set_font(s_train_countdown_layer, s_time_font);
+	text_layer_set_font(s_train_countdown_layer, s_time_font_60);
 	text_layer_set_text(s_train_countdown_layer, "00");
 	layer_add_child(window_get_root_layer(trainInfo_window), text_layer_get_layer(s_train_countdown_layer));
 
@@ -299,6 +324,10 @@ static void trainInfo_window_load(Window *trainInfo_window) {
 
 	// Display the window
 	window_stack_push(s_trainInfo_window, true);
+	
+	// Set click providers 
+	window_set_click_config_provider(s_trainInfo_window, (ClickConfigProvider) train_window_config_provider);
+	
 }
 
 static void trainInfo_window_unload(Window *trainInfo_window) {
@@ -308,9 +337,38 @@ static void trainInfo_window_unload(Window *trainInfo_window) {
 	text_layer_destroy(s_train_station1_layer);
 	text_layer_destroy(s_train_station2_layer);
 	text_layer_destroy(s_train_departTime_layer);
-	fonts_unload_custom_font(s_weather_font);
-	text_layer_destroy(s_train_arriveTime_layer);
+	fonts_unload_custom_font(s_time_font_60);
 	text_layer_destroy(s_train_countdown_layer);
+}
+
+static void trainSchedule_window_load(Window *trainSchedule_window) {
+	// Get information about the Window
+	Layer *window_layer = window_get_root_layer(trainSchedule_window);
+	GRect bounds = layer_get_bounds(window_layer);
+	window_set_background_color(trainSchedule_window, GColorBlack);
+	
+	// Create schedule layer
+	s_trainSchedule_schedule_layer = text_layer_create(
+	  GRect(PBL_IF_ROUND_ELSE(30, 0), 149, (bounds.size.w), 18));
+	text_layer_set_background_color(s_trainSchedule_schedule_layer, GColorClear);
+	text_layer_set_font(s_trainSchedule_schedule_layer, fonts_get_system_font(FONT_KEY_GOTHIC_18));
+	text_layer_set_text_color(s_trainSchedule_schedule_layer, GColorWhite);
+	text_layer_set_text_alignment(s_trainSchedule_schedule_layer, GTextAlignmentLeft);
+	text_layer_set_overflow_mode(s_trainSchedule_schedule_layer, GTextOverflowModeWordWrap);
+	text_layer_set_text(s_trainSchedule_schedule_layer, "Schedule");
+	layer_add_child(window_get_root_layer(trainSchedule_window), text_layer_get_layer(s_trainSchedule_schedule_layer));
+
+	// Display the window
+	window_stack_push(s_trainSchedule_window, true);
+	
+	// Set click providers 
+	//window_set_click_config_provider(s_trainSchedule_window, (ClickConfigProvider) schedule_window_config_provider);
+	
+}
+
+static void trainSchedule_window_unload(Window *trainSchedule_window) {
+	// Destroy train schedule window elements
+	text_layer_destroy(s_trainSchedule_schedule_layer);
 }
 
 static void tick_handler(struct tm *tick_time, TimeUnits units_changed) {
@@ -332,11 +390,13 @@ printf("mins_left: %d\n", mins_left);
 		if (mins_left > 60 && mins_elapsed > 9){
 		// Only get new data every 10 minutes to save battery
 			mins_elapsed = 0;
+			vibes_short_pulse();
 			getData(p_departStation, p_arriveStation);
 		}
 		else if (mins_left > 15 && mins_elapsed > 4){
 		// Only get new data every 5 minutes to save battery
 			mins_elapsed = 0;
+			vibes_short_pulse();
 			getData(p_departStation, p_arriveStation);
 		}
 		else if (mins_left <= 15){
@@ -346,7 +406,7 @@ printf("mins_left: %d\n", mins_left);
 		else {
 		// Update the countdown timer	
 			static char buffer_mins_left[4] = "000";
-			snprintf(buffer_mins_left, sizeof(buffer_mins_left), "%d", mins_left);
+			snprintf(buffer_mins_left, sizeof(buffer_mins_left), "%dm", mins_left);
 			text_layer_set_text(s_train_countdown_layer, buffer_mins_left);
 		}
 	}  
@@ -363,16 +423,16 @@ static void init() {
 	});
 
 	// Show the Window on the watch, with animated=true
-	window_stack_push(s_main_window, true);
+	window_stack_push(s_main_window, false);
 
 	// Register with TickTimerService
 	tick_timer_service_subscribe(MINUTE_UNIT, tick_handler);
 	// Update the time
 	update_time();
 
-	// Set click provider 
+	// Set click providers 
 	window_set_click_config_provider(s_main_window, (ClickConfigProvider) config_provider);
-
+	
 	// Register callbacks
 	app_message_register_inbox_received(inbox_received_callback);
 	app_message_register_inbox_dropped(inbox_dropped_callback);
@@ -389,12 +449,20 @@ static void init() {
 		.load = trainInfo_window_load,
 		.unload = trainInfo_window_unload
 	});
+	
+	// Create the train schedule window 
+	s_trainSchedule_window = window_create();
+	window_set_window_handlers(s_trainSchedule_window, (WindowHandlers) {
+		.load = trainSchedule_window_load,
+		.unload = trainSchedule_window_unload
+	});
 }
 
 static void deinit() {
 	// Destroy Window
 	window_destroy(s_main_window);
 	window_destroy(s_trainInfo_window);
+	window_destroy(s_trainSchedule_window);
 }
 
 int main(void) {

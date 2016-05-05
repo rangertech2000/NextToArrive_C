@@ -40,7 +40,7 @@ function getTrainInfo() {
         var delayMins = delay.substr(0, delay.indexOf(' '));
 
         if (delayMins == 'On'){delayMins = '0';}
-        else if (delayMins < 0){delayMins = '???';}
+        else if (delayMins < 0){delayMins = '999';}
 
         dictionary = {
           "KEY_DEPART_TIME": json[trainNo].orig_departure_time,

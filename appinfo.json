@@ -17,6 +17,12 @@
         "media": [
             {
                 "file": "fonts/white-rabbit.ttf",
+                "name": "FONT_WHITE_RABBIT_60",
+                "targetPlatforms": null,
+                "type": "font"
+            },
+            {
+                "file": "fonts/white-rabbit.ttf",
                 "name": "FONT_WHITE_RABBIT_48",
                 "targetPlatforms": null,
                 "type": "font"
