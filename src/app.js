@@ -11,29 +11,32 @@ var xhrRequest = function (url, type, callback) {
 };
 
 function getTrainInfo() {
-  // Construct URL
-  var URL = 'http://www3.septa.org/hackathon/NextToArrive/' + station1 + '/' + station2 + '/' + requests;
-  URL = URL.replace(' ', '%20');
-  
+	// Construct URL
+	station1 = station1.replace(' ', '%20');
+	station2 = station2.replace(' ', '%20');
+  	var URL = 'http://www3.septa.org/hackathon/NextToArrive/' + station1 + '/' + station2 + '/' + requests;
+  	//URL = URL.replace(/%20/g, '%20');
+	//URL = encodeURIComponent(URL);
+console.log(URL);
   // Send request to SEPTA
-  xhrRequest(URL, 'GET',
-    function(responseText) {
-      // responseText contains a JSON object with train info
-      var json = JSON.parse(responseText);
-      var dictionary;
+  	xhrRequest(URL, 'GET',
+    	function(responseText) {
+      		// responseText contains a JSON object with train info
+			var json = JSON.parse(responseText);
+			var dictionary;
       
-      // Show to user
-      if (json.length === 0){
-        // Assemble dictionary using our keys
-        dictionary = {
-          "KEY_DEPART_TIME": 'No trains',
-          "KEY_DELAY": '999',
-          "KEY_ARRIVE_TIME": 'No trains'
-        };
-      }
-      else{
-        showCard(0);
-      }
+      		// Show to user
+      		if (json.length === 0){
+        		// Assemble dictionary using our keys
+        		dictionary = {
+					"KEY_DEPART_TIME": 'No trains',
+				  	"KEY_DELAY": '999',
+				  	"KEY_ARRIVE_TIME": 'No trains'
+        		};
+      		} 
+			else {
+        		showCard(0);
+      		}
 
       function showCard(trainNo){
         var delay = json[trainNo].orig_delay;
@@ -97,3 +100,29 @@ Pebble.addEventListener('appmessage',
     }
   }
 );
+
+// Listen for when an AppMessage is received from the configuration page
+Pebble.addEventListener('showConfiguration', function() {
+	var url = 'http://1zentao1.wix.com/next2arrive';
+
+	Pebble.openURL(url);
+});
+
+Pebble.addEventListener('webviewclosed', function(e) {
+	// Decode the user's preferences
+	var configData = JSON.parse(decodeURIComponent(e.response));
+	
+	// Send to the watchapp via AppMessage
+	var dict = {
+	  'KEY_STATION1': configData.station1_input,
+	  'KEY_STATION2': configData.station2_input
+	};
+	
+	// Send to the watchapp
+	Pebble.sendAppMessage(dict, function() {
+	  console.log('Config data sent successfully!');
+	}, function(e) {
+	  console.log('Error sending config data!');
+	});	
+});
+						

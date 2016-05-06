@@ -1,4 +1,4 @@
-//v1.6.
+//v1.7.
 #include <pebble.h>
 
 #define KEY_STATION1 1
@@ -7,12 +7,16 @@
 #define KEY_DELAY 4
 #define KEY_ARRIVE_TIME 5
 
-char station1[32] = "Wissahickon";
-char station2[32] = "Suburban Station";
-int mins_left;
-
+//Persisted keys
+uint32_t keyStation1 = 11;
+uint32_t keyStation2 = 12;
+char station1_buffer[32];
+char station2_buffer[32];
+char *station1;
+char *station2;
 static char *p_departStation;
 static char *p_arriveStation;
+int mins_left;
   
 static Window *s_main_window;
 static TextLayer *s_time_layer;
@@ -97,14 +101,37 @@ static void inbox_received_callback(DictionaryIterator *iterator, void *context)
 	static char delay_buffer[16];
 	static char arrive_buffer[16];
 	static char depart_layer_buffer[32];
+	static char station1_buffer[32];
+	static char station2_buffer[32];
 
 	// Read tuples for data
+	Tuple *station1_tuple = dict_find(iterator, KEY_STATION1);
+	Tuple *station2_tuple = dict_find(iterator, KEY_STATION2);
 	Tuple *depart_tuple = dict_find(iterator, KEY_DEPART_TIME);
 	Tuple *delay_tuple = dict_find(iterator, KEY_DELAY);
 	Tuple *arrive_tuple = dict_find(iterator, KEY_ARRIVE_TIME);
-
-	// If data is available, use it
-	if (depart_tuple && delay_tuple) {
+	
+	// If station data is available, use it
+	if (station1_tuple && station2_tuple) {
+		printf("Station name tuples are available");
+		
+		//persist the station names
+		snprintf(station1_buffer, sizeof(station1_buffer), "%s", station1_tuple->value->cstring);
+		snprintf(station2_buffer, sizeof(station2_buffer), "%s", station2_tuple->value->cstring);
+  		persist_write_string(keyStation1, station1_buffer);
+		persist_write_string(keyStation2, station2_buffer);
+		station1 = station1_buffer;
+		station2 = station2_buffer;
+		
+		// Open the train info window
+		getData(station1, station2);
+		window_stack_push(s_trainInfo_window, false);
+	} else {
+		printf("Station name tuples are not available");
+	}
+	
+	// If train data is available, use it
+	if (depart_tuple && delay_tuple && arrive_tuple) {
 		snprintf(depart_buffer, sizeof(depart_buffer), "%s", depart_tuple->value->cstring);
 		snprintf(delay_buffer, sizeof(delay_buffer), "%s", delay_tuple->value->cstring);
 		//delay_buffer = delay_tuple->value->int8;
@@ -117,11 +144,9 @@ static void inbox_received_callback(DictionaryIterator *iterator, void *context)
 		//snprintf(bufferMinutesLeft, sizeof(bufferMinutesLeft), "%dm", getMinutesLeft(depart_buffer, delay_buffer));
 		text_layer_set_text(s_train_countdown_layer, bufferMinutesLeft);
 		
-		
 		// Assemble the depart layer string
 		snprintf(depart_layer_buffer, sizeof(depart_layer_buffer), "%s +%sm", depart_buffer, delay_buffer);
   		//snprintf(depart_layer_buffer, sizeof(depart_layer_buffer), "%s +%sm", depart_buffer, buffer);
-  
 		
 		//Update the text
 		text_layer_set_text(s_train_departTime_layer, depart_layer_buffer);
@@ -377,15 +402,13 @@ static int mins_elapsed;
 	// Decrement minutes left until departure
 	mins_left--;
 
-	// Update TIME
+	// Update the TIME
 	update_time();
 
 	// Update if the train info window is on top
 	if (window_stack_get_top_window() == s_trainInfo_window){
 		// Increment the counter
 		mins_elapsed++;
-printf("mins_elapsed: %d\n", mins_elapsed);	
-printf("mins_left: %d\n", mins_left);	
 		
 		if (mins_left > 60 && mins_elapsed > 9){
 		// Only get new data every 10 minutes to save battery
@@ -405,7 +428,7 @@ printf("mins_left: %d\n", mins_left);
 		}
 		else {
 		// Update the countdown timer	
-			static char buffer_mins_left[4] = "000";
+			static char buffer_mins_left[4];
 			snprintf(buffer_mins_left, sizeof(buffer_mins_left), "%dm", mins_left);
 			text_layer_set_text(s_train_countdown_layer, buffer_mins_left);
 		}
@@ -413,6 +436,38 @@ printf("mins_left: %d\n", mins_left);
 }
 
 static void init() { 
+	//Check for persisted keys
+	if (persist_exists(keyStation1)) {
+  		// Read persisted value
+  		persist_read_string(keyStation1, station1_buffer, sizeof(station1_buffer));
+		printf("Persisted station1: %s", station1_buffer);
+		station1 = station1_buffer;
+	} else {
+  		// Choose a default value
+  		station1 = "Wissahickon";
+		printf("Assigned station1: %s", station1);
+
+  		// Remember the default value until the user chooses their own value
+  		persist_write_string(keyStation1, station1_buffer);
+	}
+	
+	if (persist_exists(keyStation2)) {
+  		// Read persisted value
+  		persist_read_string(keyStation2, station2_buffer, sizeof(station2_buffer));
+		printf("Persisted station2: %s", station2_buffer);
+		station2 = station2_buffer;
+	} else {
+  		// Choose a default value
+  		station2 = "Suburban Station";
+		printf("Assigned station2: %s", station2);
+		
+  		// Remember the default value until the user chooses their own value
+  		persist_write_string(keyStation2, station2_buffer);
+	}
+
+	//station1 = "Wissahickon";
+	//station2 = "Suburban Station";
+	
 	// Create main Window element and assign to pointer
 	s_main_window = window_create();
 
@@ -441,7 +496,7 @@ static void init() {
 
 	// Open AppMessage
 	//app_message_open(app_message_inbox_size_maximum(), app_message_outbox_size_maximum());
-	app_message_open(128, 128);
+	app_message_open(64, 64);
 	
 	// Create the train info window 
 	s_trainInfo_window = window_create();
