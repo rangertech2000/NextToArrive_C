@@ -7,7 +7,7 @@
         "KEY_STATION2": 2
     },
     "capabilities": [
-        ""
+        "configurable"
     ],
     "companyName": "thaoh@hotmail.com",
     "enableMultiJS": false,

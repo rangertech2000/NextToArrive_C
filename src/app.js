@@ -15,7 +15,7 @@ function getTrainInfo() {
 	station1 = station1.replace(' ', '%20');
 	station2 = station2.replace(' ', '%20');
   	var URL = 'http://www3.septa.org/hackathon/NextToArrive/' + station1 + '/' + station2 + '/' + requests;
-  	//URL = URL.replace(/%20/g, '%20');
+  	URL = URL.replace(/\s/g, '%20');
 	//URL = encodeURIComponent(URL);
 console.log(URL);
   // Send request to SEPTA

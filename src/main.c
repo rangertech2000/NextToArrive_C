@@ -1,4 +1,4 @@
-//v1.7.
+//v1.8.
 #include <pebble.h>
 
 #define KEY_STATION1 1
@@ -122,11 +122,14 @@ static void inbox_received_callback(DictionaryIterator *iterator, void *context)
 		persist_write_string(keyStation2, station2_buffer);
 		station1 = station1_buffer;
 		station2 = station2_buffer;
+		p_departStation = station1_buffer;
+		p_arriveStation = station2_buffer;
 		
 		// Open the train info window
-		getData(station1, station2);
-		window_stack_push(s_trainInfo_window, false);
-	} else {
+		getData(p_departStation, p_arriveStation);
+		//window_stack_push(s_trainInfo_window, false);
+	} 
+	else {
 		printf("Station name tuples are not available");
 	}
 	
@@ -442,7 +445,8 @@ static void init() {
   		persist_read_string(keyStation1, station1_buffer, sizeof(station1_buffer));
 		printf("Persisted station1: %s", station1_buffer);
 		station1 = station1_buffer;
-	} else {
+	} 
+	else {
   		// Choose a default value
   		station1 = "Wissahickon";
 		printf("Assigned station1: %s", station1);
@@ -456,7 +460,8 @@ static void init() {
   		persist_read_string(keyStation2, station2_buffer, sizeof(station2_buffer));
 		printf("Persisted station2: %s", station2_buffer);
 		station2 = station2_buffer;
-	} else {
+	} 
+	else {
   		// Choose a default value
   		station2 = "Suburban Station";
 		printf("Assigned station2: %s", station2);
@@ -464,9 +469,6 @@ static void init() {
   		// Remember the default value until the user chooses their own value
   		persist_write_string(keyStation2, station2_buffer);
 	}
-
-	//station1 = "Wissahickon";
-	//station2 = "Suburban Station";
 	
 	// Create main Window element and assign to pointer
 	s_main_window = window_create();
