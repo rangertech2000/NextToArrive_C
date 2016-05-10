@@ -3,6 +3,8 @@
         "KEY_ARRIVE_TIME": 5,
         "KEY_DELAY": 4,
         "KEY_DEPART_TIME": 3,
+        "KEY_RECORDS_TO_FETCH": 6,
+        "KEY_SCHEDULE": 7,
         "KEY_STATION1": 1,
         "KEY_STATION2": 2
     },
@@ -16,16 +18,22 @@
     "resources": {
         "media": [
             {
-                "file": "images/train_bar.png",
-                "name": "TRAIN_BAR",
+                "file": "images/septa_logo.png",
+                "name": "IMAGE_SEPTA_LOGO",
                 "targetPlatforms": null,
                 "type": "bitmap"
             },
             {
-                "file": "fonts/white-rabbit.ttf",
-                "name": "FONT_WHITE_RABBIT_48",
+                "file": "images/background.png",
+                "name": "IMAGE_BACKGROUND",
                 "targetPlatforms": null,
-                "type": "font"
+                "type": "bitmap"
+            },
+            {
+                "file": "images/train_bar.png",
+                "name": "IMAGE_TRAIN_BAR",
+                "targetPlatforms": null,
+                "type": "bitmap"
             },
             {
                 "file": "fonts/white-rabbit.ttf",
@@ -34,14 +42,8 @@
                 "type": "font"
             },
             {
-                "file": "fonts/perfect-dos-vga.ttf",
-                "name": "FONT_PERFECT_DOS_20",
-                "targetPlatforms": null,
-                "type": "font"
-            },
-            {
-                "file": "fonts/perfect-dos-vga.ttf",
-                "name": "FONT_PERFECT_DOS_48",
+                "file": "fonts/white-rabbit.ttf",
+                "name": "FONT_WHITE_RABBIT_48",
                 "targetPlatforms": null,
                 "type": "font"
             }
@@ -51,8 +53,7 @@
     "shortName": "NextToArrive_C",
     "targetPlatforms": [
         "aplite",
-        "basalt",
-        "chalk"
+        "basalt"
     ],
     "uuid": "64ca784a-6b4c-457f-9f7d-62d7f5e42e42",
     "versionLabel": "1.0",
