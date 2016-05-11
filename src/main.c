@@ -1,4 +1,4 @@
-//v1.8.
+//v2.0.
 #include <pebble.h>
 
 #define KEY_STATION1 1
@@ -34,6 +34,7 @@ static BitmapLayer *s_septa_logo_layer;
 static Window *s_trainInfo_window;
 static StatusBarLayer *s_statusbar_layer;
 static BitmapLayer *s_trainbar_layer;
+static BitmapLayer *s_trainNav_layer;
 static TextLayer *s_train_departTime_layer;
 static TextLayer *s_train_arriveTime_layer;
 static TextLayer *s_train_station1_layer;
@@ -45,6 +46,7 @@ static TextLayer *s_train_countdown_label_layer;
 static Window *s_trainSchedule_window;
 static ScrollLayer *s_trainSchedule_scroll_layer;
 static TextLayer *s_trainSchedule_text_layer;
+static TextLayer *s_trainSchedule_title_layer;
 
 static GFont s_time_font_48;
 static GFont s_time_font_60;
@@ -173,20 +175,18 @@ static void inbox_received_callback(DictionaryIterator *iterator, void *context)
 	
 	// If schedule is available, use it
 	if (schedule_tuple) {
-		static char schedule_buffer[256];
+		static char schedule_buffer[512];
 		snprintf(schedule_buffer, sizeof(schedule_buffer), "%s", schedule_tuple->value->cstring);
 		//printf(schedule_buffer);
-		
-		
-		
+
 		//Update the text
 		text_layer_set_text(s_trainSchedule_text_layer, schedule_buffer);
 		
 		// Trim text layer and scroll content to fit text box
 		GSize max_size = text_layer_get_content_size(s_trainSchedule_text_layer);
 		text_layer_set_size(s_trainSchedule_text_layer, max_size);
-		scroll_layer_set_content_size(s_trainSchedule_scroll_layer, GSize(144, max_size.h + 4));
-		
+		scroll_layer_set_content_size(s_trainSchedule_scroll_layer, GSize(144, max_size.h + 20));
+
 	}
 }
 
@@ -253,7 +253,7 @@ void config_provider(Window *window) {
 void train_up_click_handler(ClickRecognizerRef recognizer, void *context) {
 	printf("%s \n", "UP button clicked");
 
-	fetchData(p_departStation, p_arriveStation, 10);
+	fetchData(p_departStation, p_arriveStation, 20);
 
 	window_stack_push(s_trainSchedule_window, false);
 }
@@ -411,6 +411,7 @@ static void trainInfo_window_load(Window *trainInfo_window) {
 	text_layer_set_text_color(s_train_arriveTime_layer, GColorWhite);
 	text_layer_set_text_alignment(s_train_arriveTime_layer, GTextAlignmentLeft);
 	text_layer_set_overflow_mode(s_train_arriveTime_layer, GTextOverflowModeWordWrap);
+	text_layer_set_text(s_train_arriveTime_layer, "Loading...");
 	layer_add_child(window_get_root_layer(trainInfo_window), text_layer_get_layer(s_train_arriveTime_layer));
   
 	// Create arrive station layer
@@ -424,6 +425,13 @@ static void trainInfo_window_load(Window *trainInfo_window) {
 	//text_layer_set_text(s_train_station1_layer, station2);
 	layer_add_child(window_get_root_layer(trainInfo_window), text_layer_get_layer(s_train_station2_layer));
 
+	// Create train navigation layer
+	s_trainNav_layer = bitmap_layer_create(
+	  GRect(PBL_IF_ROUND_ELSE(120, 125), PBL_IF_ROUND_ELSE(5, 0), 20, 168));
+	bitmap_layer_set_bitmap(s_trainNav_layer, gbitmap_create_with_resource(RESOURCE_ID_IMAGE_TRAIN_NAV));
+	bitmap_layer_set_background_color(s_trainbar_layer, GColorClear);
+	layer_add_child(window_get_root_layer(trainInfo_window), bitmap_layer_get_layer(s_trainNav_layer));
+	
 	// Display the window
 	window_stack_push(s_trainInfo_window, true);
 	
@@ -441,13 +449,14 @@ static void trainInfo_window_unload(Window *trainInfo_window) {
 	fonts_unload_custom_font(s_time_font_60);
 	text_layer_destroy(s_train_countdown_layer);
 	text_layer_destroy(s_train_countdown_label_layer);
+	bitmap_layer_destroy(s_trainNav_layer);
 }
 
 static void trainSchedule_window_load(Window *trainSchedule_window) {
 	// Get information about the Window
 	Layer *window_layer = window_get_root_layer(trainSchedule_window);
 	GRect bounds = layer_get_frame(window_layer);
-	GRect max_text_bounds = GRect(0, 0, bounds.size.w, 2000);
+	GRect max_text_bounds = GRect(0, 15, bounds.size.w, 2000);
 	window_set_background_color(trainSchedule_window, GColorBlack);
 
 	// Create the scroll layer
@@ -459,14 +468,23 @@ static void trainSchedule_window_load(Window *trainSchedule_window) {
 		scroll_layer_set_paging(s_trainSchedule_scroll_layer, true);
 	#endif
 */	
+	// Create title layer
+	s_trainSchedule_title_layer = text_layer_create(GRect(0,0,144,14));
+	text_layer_set_background_color(s_trainSchedule_title_layer, GColorBlack);
+	text_layer_set_text_color(s_trainSchedule_title_layer, GColorWhite);
+	text_layer_set_text_alignment(s_trainSchedule_title_layer, GTextAlignmentCenter);
+	text_layer_set_font(s_trainSchedule_title_layer, fonts_get_system_font(FONT_KEY_GOTHIC_14));
+	text_layer_set_text(s_trainSchedule_title_layer, "Departs -------- Arrives");
+	
 	// Create text layer
 	s_trainSchedule_text_layer = text_layer_create(max_text_bounds);
 	text_layer_set_background_color(s_trainSchedule_text_layer, GColorBlack);
 	text_layer_set_text_color(s_trainSchedule_text_layer, GColorWhite);
-	text_layer_set_text(s_trainSchedule_text_layer, "Schedule");
-	text_layer_set_font(s_trainSchedule_text_layer, fonts_get_system_font(FONT_KEY_GOTHIC_18));
+	text_layer_set_text(s_trainSchedule_text_layer, "Loading Schedule...");
+	text_layer_set_font(s_trainSchedule_text_layer, fonts_get_system_font(FONT_KEY_GOTHIC_24));
 	
 	// Add the layers for display
+	scroll_layer_add_child(s_trainSchedule_scroll_layer, text_layer_get_layer(s_trainSchedule_title_layer));
 	scroll_layer_add_child(s_trainSchedule_scroll_layer, text_layer_get_layer(s_trainSchedule_text_layer));
 	layer_add_child(window_get_root_layer(trainSchedule_window), scroll_layer_get_layer(s_trainSchedule_scroll_layer));
 /*	
@@ -492,16 +510,13 @@ static void trainSchedule_window_load(Window *trainSchedule_window) {
 
 	// Display the window
 	window_stack_push(s_trainSchedule_window, true);
-	
-	// Set click providers 
-	//window_set_click_config_provider(s_trainSchedule_window, (ClickConfigProvider) schedule_window_config_provider);
-	
 }
 
 static void trainSchedule_window_unload(Window *trainSchedule_window) {
 	// Destroy train schedule window elements
 	scroll_layer_destroy(s_trainSchedule_scroll_layer);
 	text_layer_destroy(s_trainSchedule_text_layer);
+	text_layer_destroy(s_trainSchedule_title_layer);
 }
 
 static void tick_handler(struct tm *tick_time, TimeUnits units_changed) {
@@ -603,8 +618,8 @@ static void init() {
 	app_message_register_outbox_sent(outbox_sent_callback);
 
 	// Open AppMessage
-	app_message_open(app_message_inbox_size_maximum(), app_message_outbox_size_maximum());
-	//app_message_open(256, 64);
+	//app_message_open(app_message_inbox_size_maximum(), app_message_outbox_size_maximum());
+	app_message_open(512, 64);
 	
 	// Create the train info window 
 	s_trainInfo_window = window_create();

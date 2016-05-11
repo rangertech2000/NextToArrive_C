@@ -48,18 +48,19 @@ console.log(URL);
 				};
 			}
 			else {
-				// Check the number or records
+				// Check the number of records
 				if (json.length < requests){
 					requests = json.length;
 				}
 				
-				// Create schedule
+				// Create the schedule
 				var text = "";
     			var i = 0;
    				while (i < requests) {
         			text += json[i].orig_departure_time + ' >> ' + 
 						json[i].orig_arrival_time + '\n';
 					
+					// Show delay for only the first 2 records
 					if (i < 2) {
 						text += '   ' +json[i].orig_delay + '\n';
 					}

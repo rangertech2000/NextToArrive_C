@@ -18,6 +18,12 @@
     "resources": {
         "media": [
             {
+                "file": "images/train_nav.png",
+                "name": "IMAGE_TRAIN_NAV",
+                "targetPlatforms": null,
+                "type": "bitmap"
+            },
+            {
                 "file": "images/septa_logo.png",
                 "name": "IMAGE_SEPTA_LOGO",
                 "targetPlatforms": null,
