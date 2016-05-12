@@ -18,6 +18,12 @@
     "resources": {
         "media": [
             {
+                "file": "images/train_bar_1.png",
+                "name": "IMAGE_TRAIN_BAR",
+                "targetPlatforms": null,
+                "type": "bitmap"
+            },
+            {
                 "file": "images/train_nav.png",
                 "name": "IMAGE_TRAIN_NAV",
                 "targetPlatforms": null,
@@ -32,12 +38,6 @@
             {
                 "file": "images/background.png",
                 "name": "IMAGE_BACKGROUND",
-                "targetPlatforms": null,
-                "type": "bitmap"
-            },
-            {
-                "file": "images/train_bar.png",
-                "name": "IMAGE_TRAIN_BAR",
                 "targetPlatforms": null,
                 "type": "bitmap"
             },

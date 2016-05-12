@@ -35,12 +35,17 @@ console.log(URL);
         		};
       		} 
 			else if (requests == 1){
+				// Get the delay minutes
 				var delay = json[0].orig_delay;
 				var delayMins = delay.substr(0, delay.indexOf(' '));
-
 				if (delayMins == 'On'){delayMins = '0';}
 				else if (delayMins < 0){delayMins = '999';}
-
+				
+				// Get the arrival time
+				var arrival_time;
+				if (json[0].isdirect == 'true') {arrival_time = json[0].orig_arrival_time;}
+				else {arrival_time = json[0].term_arival_time;}
+				
 				dictionary = {
 					"KEY_DEPART_TIME": json[0].orig_departure_time,
 					"KEY_DELAY": delayMins,
@@ -48,7 +53,7 @@ console.log(URL);
 				};
 			}
 			else {
-				// Check the number of records
+				// Determine the max number of records
 				if (json.length < requests){
 					requests = json.length;
 				}

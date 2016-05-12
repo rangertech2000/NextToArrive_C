@@ -1,4 +1,4 @@
-//v2.0.
+//v2.1.
 #include <pebble.h>
 
 #define KEY_STATION1 1
@@ -145,32 +145,43 @@ static void inbox_received_callback(DictionaryIterator *iterator, void *context)
 	
 	// If train data is available, use it
 	if (depart_tuple && delay_tuple && arrive_tuple) {
-		static char depart_buffer[16];
-		static char delay_buffer[16];
-		static char arrive_buffer[16];
-		static char depart_layer_buffer[32];
 		
-		snprintf(depart_buffer, sizeof(depart_buffer), "%s", depart_tuple->value->cstring);
-		snprintf(delay_buffer, sizeof(delay_buffer), "%s", delay_tuple->value->cstring);
-		//delay_buffer = delay_tuple->value->int8;
-//printf("delay_buffer: %d: ", delay_buffer);		
-		snprintf(arrive_buffer, sizeof(arrive_buffer), "%s", arrive_tuple->value->cstring); 
-    
 		// Get minutes until departure
+		int i_delay = atoi(delay_tuple->value->cstring);
 		static char bufferMinutesLeft[4];
-		snprintf(bufferMinutesLeft, sizeof(bufferMinutesLeft), "%dm", getMinutesLeft(depart_buffer, atoi(delay_buffer)));
-		//snprintf(bufferMinutesLeft, sizeof(bufferMinutesLeft), "%dm", getMinutesLeft(depart_buffer, delay_buffer));
-		text_layer_set_text(s_train_countdown_layer, bufferMinutesLeft);
+		snprintf(bufferMinutesLeft, sizeof(bufferMinutesLeft), "%dm", 
+				 getMinutesLeft(depart_tuple->value->cstring, i_delay));
+		
+		// Set background color
+		GColor bgColor;
+        
+        if (i_delay == 0){
+			bgColor = GColorGreen;
+		}
+       	else if (i_delay > 0 && i_delay < 15){
+			bgColor = GColorYellow;
+		}
+		else if (i_delay > 14){
+            bgColor = GColorRed;
+		}
 		
 		// Assemble the depart layer string
-		snprintf(depart_layer_buffer, sizeof(depart_layer_buffer), "%s +%sm", depart_buffer, delay_buffer);
-  		//snprintf(depart_layer_buffer, sizeof(depart_layer_buffer), "%s +%sm", depart_buffer, buffer);
-		
+		static char depart_layer_buffer[32];
+		snprintf(depart_layer_buffer, sizeof(depart_layer_buffer), "%s +%sm", 
+				 depart_tuple->value->cstring, delay_tuple->value->cstring);
+  		
+		static char arrive_layer_buffer[12];
+		snprintf(arrive_layer_buffer, sizeof(arrive_layer_buffer), "%s", 
+				 arrive_tuple->value->cstring);
+				 
 		//Update the text
-		text_layer_set_text(s_train_departTime_layer, depart_layer_buffer);
+		//window_set_background_color(s_trainInfo_window, bgColor);
+		bitmap_layer_set_background_color(s_trainbar_layer, bgColor);
 		text_layer_set_text(s_train_station1_layer, p_departStation);
+		text_layer_set_text(s_train_departTime_layer, depart_layer_buffer);
+		text_layer_set_text(s_train_countdown_layer, bufferMinutesLeft);
+		text_layer_set_text(s_train_arriveTime_layer, arrive_layer_buffer);
 		text_layer_set_text(s_train_station2_layer, p_arriveStation);
-		text_layer_set_text(s_train_arriveTime_layer, arrive_buffer);
 	}
 	
 	// If schedule is available, use it
@@ -355,7 +366,8 @@ static void trainInfo_window_load(Window *trainInfo_window) {
 	s_trainbar_layer = bitmap_layer_create(
 	  GRect(PBL_IF_ROUND_ELSE(30, 0), PBL_IF_ROUND_ELSE(43, 38), 16, 114));
 	bitmap_layer_set_bitmap(s_trainbar_layer, gbitmap_create_with_resource(RESOURCE_ID_IMAGE_TRAIN_BAR));
-	bitmap_layer_set_background_color(s_trainbar_layer, GColorClear);
+	//bitmap_layer_set_background_color(s_trainbar_layer, GColorClear);
+	bitmap_layer_set_compositing_mode(s_trainbar_layer, GCompOpSet);
 	layer_add_child(window_get_root_layer(trainInfo_window), bitmap_layer_get_layer(s_trainbar_layer));
 
 	// Create depart station layer
@@ -379,6 +391,16 @@ static void trainInfo_window_load(Window *trainInfo_window) {
 	text_layer_set_overflow_mode(s_train_departTime_layer, GTextOverflowModeWordWrap);
 	text_layer_set_text(s_train_departTime_layer, "Loading...");
 	layer_add_child(window_get_root_layer(trainInfo_window), text_layer_get_layer(s_train_departTime_layer));
+
+	// Create countdown label layer
+	s_train_countdown_label_layer = text_layer_create(
+	GRect(PBL_IF_ROUND_ELSE(49, 22), 64, (bounds.size.w - 19), 16));
+	text_layer_set_background_color(s_train_countdown_label_layer, GColorClear);
+	text_layer_set_text_color(s_train_countdown_label_layer, GColorWhite);
+	text_layer_set_text_alignment(s_train_countdown_label_layer, GTextAlignmentLeft);
+	text_layer_set_font(s_train_countdown_label_layer, fonts_get_system_font(FONT_KEY_GOTHIC_14));
+	text_layer_set_text(s_train_countdown_label_layer, "Leaving in:");
+	layer_add_child(window_get_root_layer(trainInfo_window), text_layer_get_layer(s_train_countdown_label_layer));
 	
 	// Create GFont
 	s_time_font_60 = fonts_load_custom_font(resource_get_handle(RESOURCE_ID_FONT_WHITE_RABBIT_60));  
@@ -392,16 +414,6 @@ static void trainInfo_window_load(Window *trainInfo_window) {
 	text_layer_set_font(s_train_countdown_layer, s_time_font_60);
 	text_layer_set_text(s_train_countdown_layer, "00");
 	layer_add_child(window_get_root_layer(trainInfo_window), text_layer_get_layer(s_train_countdown_layer));
-
-	// Create countdown label layer
-	s_train_countdown_label_layer = text_layer_create(
-	GRect(PBL_IF_ROUND_ELSE(49, 22), 64, (bounds.size.w - 19), 16));
-	text_layer_set_background_color(s_train_countdown_label_layer, GColorClear);
-	text_layer_set_text_color(s_train_countdown_label_layer, GColorWhite);
-	text_layer_set_text_alignment(s_train_countdown_label_layer, GTextAlignmentLeft);
-	text_layer_set_font(s_train_countdown_label_layer, fonts_get_system_font(FONT_KEY_GOTHIC_14));
-	text_layer_set_text(s_train_countdown_label_layer, "Leaving in:");
-	layer_add_child(window_get_root_layer(trainInfo_window), text_layer_get_layer(s_train_countdown_label_layer));
 	
 	// Create arrive time Layer
 	s_train_arriveTime_layer = text_layer_create(
@@ -429,7 +441,8 @@ static void trainInfo_window_load(Window *trainInfo_window) {
 	s_trainNav_layer = bitmap_layer_create(
 	  GRect(PBL_IF_ROUND_ELSE(120, 125), PBL_IF_ROUND_ELSE(5, 0), 20, 168));
 	bitmap_layer_set_bitmap(s_trainNav_layer, gbitmap_create_with_resource(RESOURCE_ID_IMAGE_TRAIN_NAV));
-	bitmap_layer_set_background_color(s_trainbar_layer, GColorClear);
+	//bitmap_layer_set_background_color(s_trainNav_layer, GColorClear);
+	bitmap_layer_set_compositing_mode(s_trainNav_layer, GCompOpSet);
 	layer_add_child(window_get_root_layer(trainInfo_window), bitmap_layer_get_layer(s_trainNav_layer));
 	
 	// Display the window
@@ -444,11 +457,12 @@ static void trainInfo_window_unload(Window *trainInfo_window) {
 	status_bar_layer_destroy(s_statusbar_layer);
 	bitmap_layer_destroy(s_trainbar_layer);
 	text_layer_destroy(s_train_station1_layer);
-	text_layer_destroy(s_train_station2_layer);
 	text_layer_destroy(s_train_departTime_layer);
 	fonts_unload_custom_font(s_time_font_60);
-	text_layer_destroy(s_train_countdown_layer);
 	text_layer_destroy(s_train_countdown_label_layer);
+	text_layer_destroy(s_train_countdown_layer);
+	text_layer_destroy(s_train_arriveTime_layer);
+	text_layer_destroy(s_train_station2_layer);
 	bitmap_layer_destroy(s_trainNav_layer);
 }
 
